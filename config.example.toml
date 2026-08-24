@@ -1,0 +1,18 @@
+[communication]
+backend = "mqtt"
+
+[communication.mqtt]
+host = "localhost"
+port = 8003
+qos = 0
+topic = "my/cool/machine"
+tls = false
+cert_path = "/path/to/cert.pem"
+key_path = "/path/to/private_key.pem"
+
+[communication.opcua]
+
+[camera]
+
+[camera.sick_sec]
+

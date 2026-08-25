@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-struct SickAuth {
+pub struct SecAuth {
     config: SickSecConfig,
     client: Client,
     challenge_response_data: SecChallengeResponseData,
@@ -30,7 +30,7 @@ impl Display for HttpMethod {
     }
 }
 
-impl SickAuth {
+impl SecAuth {
     const CHALLENGE_PATH: &'static str = "/getChallenge";
 
     pub async fn new(config: SickSecConfig) -> Result<Self, Box<dyn Error>> {

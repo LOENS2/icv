@@ -1,3 +1,4 @@
+use getset::Getters;
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
@@ -44,10 +45,15 @@ pub enum CommConfig {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Getters)]
 pub struct SickSecConfig {
+    #[getset(get = "pub")]
     host: String,
+
+    #[getset(get = "pub")]
     username: String,
+
+    #[getset(get = "pub")]
     password: String,
 }
 

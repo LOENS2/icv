@@ -7,7 +7,7 @@ license = "AGPL-3"
 [dependencies]
 async-opcua = "0.19.0"
 onnxruntime = "0.0.14"
-reqwest = "0.13.4"
+reqwest = { version = "0.13.4", features = ["json"] }
 rust-mqtt = "0.5.1"
 rustls = "0.23.43"
 serde_json = "1.0.151"
@@ -17,6 +17,9 @@ simple_logger = "5.2.0"
 serde = "1.0.229"
 config = "0.15.25"
 serde_repr = "0.1.21"
+bytes = "1.12.1"
+getset = "0.1.7"
+sha2 = "0.11.0"
 
 [features]
 default = ["cpu"]

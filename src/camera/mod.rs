@@ -1,2 +1,2 @@
-mod interface;
-mod sick_sec;
+pub mod interface;
+pub mod sick_sec;

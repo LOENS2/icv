@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Err(err.to_string())?
     };
 
-    let args = parse_arguments();
+    let _args = parse_arguments();
 
     Ok(())
 }

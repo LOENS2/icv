@@ -18,8 +18,8 @@ pub struct SecAuth {
 }
 
 enum HttpMethod {
-    GET,
-    POST,
+    Get,
+    Post,
 }
 
 pub enum ResponseType {
@@ -33,8 +33,8 @@ pub enum ResponseType {
 impl Display for HttpMethod {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            HttpMethod::GET => write!(f, "GET"),
-            HttpMethod::POST => write!(f, "POST"),
+            HttpMethod::Get => write!(f, "GET"),
+            HttpMethod::Post => write!(f, "POST"),
         }
     }
 }
@@ -46,7 +46,7 @@ impl SecAuth {
         let client = Client::new();
 
         let challenge_response =
-            Self::get_challenge(&config.host(), &client, config.username()).await?;
+            Self::get_challenge(config.host(), &client, config.username()).await?;
 
         let ha1 = Self::calc_ha1(&config, &challenge_response.challenge).await?;
 
@@ -75,7 +75,7 @@ impl SecAuth {
         let host = self.config.host();
         let uri = format!("http://{host}/api{path}");
         let ha1 = &self.ha1.to_string();
-        let ha2 = Self::calc_ha2(HttpMethod::POST, path).await?;
+        let ha2 = Self::calc_ha2(HttpMethod::Post, path.strip_prefix("/").unwrap_or(path)).await?;
         let nonce = &self.challenge_response_data.nonce;
 
         let response_digest = Sha256::digest(format!("{ha1}:{nonce}:{ha2}"));
@@ -137,22 +137,6 @@ impl SecAuth {
         }
     }
 
-    async fn calc_ha2(method: HttpMethod, path: &str) -> Result<String, Box<dyn Error>> {
-        let ha2 = Sha256::digest(format!("{method}:{path}"));
-
-        Ok(hex::encode(ha2))
-    }
-    async fn update_ha1(&mut self) -> Result<(), Box<dyn Error>> {
-        let challenge_response =
-            Self::get_challenge(&self.config.host(), &self.client, self.config.username()).await?;
-        let challenge_response_data = challenge_response.challenge;
-
-        self.ha1 = Self::calc_ha1(&self.config, &challenge_response_data).await?;
-
-        self.challenge_response_data = self.challenge_response_data.clone();
-        Ok(())
-    }
-
     async fn calc_ha1(
         config: &SickSecConfig,
         sec_challenge_response_data: &SecChallengeResponseData,
@@ -165,10 +149,28 @@ impl SecAuth {
 
         let ha1 = match salt.is_empty() {
             true => Sha256::digest(ha1_base),
-            false => Sha256::digest([ha1_base.as_bytes(), salt.as_slice()].concat()),
+            false => {
+                Sha256::digest([ha1_base.as_bytes(), ":".as_bytes(), salt.as_slice()].concat())
+            }
         };
 
         Ok(hex::encode(ha1))
+    }
+
+    async fn calc_ha2(method: HttpMethod, path: &str) -> Result<String, Box<dyn Error>> {
+        let ha2 = Sha256::digest(format!("{method}:{path}"));
+
+        Ok(hex::encode(ha2))
+    }
+    async fn update_ha1(&mut self) -> Result<(), Box<dyn Error>> {
+        let challenge_response =
+            Self::get_challenge(self.config.host(), &self.client, self.config.username()).await?;
+        let challenge_response_data = challenge_response.challenge;
+
+        self.ha1 = Self::calc_ha1(&self.config, &challenge_response_data).await?;
+
+        self.challenge_response_data = self.challenge_response_data.clone();
+        Ok(())
     }
 
     async fn get_challenge(
@@ -220,7 +222,7 @@ impl SecAuth {
     }
 
     fn validate_jpeg_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error>> {
-        if bytes.len() < 3 || &bytes[0..3] != &[0xFF, 0xD8, 0xFF] {
+        if bytes.len() < 3 || bytes[0..3] != [0xFF, 0xD8, 0xFF] {
             return Err("Invalid JPEG signature".into());
         }
         Ok(())

@@ -3,6 +3,7 @@ use crate::data::sec_api::{
     SecChallengeRequest, SecChallengeRequestData, SecChallengeResponse, SecChallengeResponseData,
     SecPostRequest, SecPostRequestHeader, SecPostResponse, SecPostResponseHeader,
 };
+use bytes::Bytes;
 use reqwest::{Client, StatusCode};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -21,6 +22,14 @@ enum HttpMethod {
     POST,
 }
 
+pub enum ResponseType {
+    Json { data: Option<Value> },
+    Jpeg { data: Bytes },
+    Mp4 { data: Bytes },
+    PlainText { data: String },
+    OctetStream { data: Bytes },
+}
+
 impl Display for HttpMethod {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -36,7 +45,8 @@ impl SecAuth {
     pub async fn new(config: SickSecConfig) -> Result<Self, Box<dyn Error>> {
         let client = Client::new();
 
-        let challenge_response = Self::get_challenge(&client, config.username()).await?;
+        let challenge_response =
+            Self::get_challenge(&config.host(), &client, config.username()).await?;
 
         let ha1 = Self::calc_ha1(&config, &challenge_response.challenge).await?;
 
@@ -50,7 +60,7 @@ impl SecAuth {
 
     pub async fn get(&self, path: String) -> Result<Value, Box<dyn Error>> {
         let host = self.config.host();
-        let uri = format!("http://{host}{path}");
+        let uri = format!("http://{host}/api{path}");
 
         let res = self.client.get(uri).send().await?.json::<Value>().await?;
 
@@ -59,11 +69,11 @@ impl SecAuth {
 
     pub async fn post(
         &self,
-        path: String,
+        path: &str,
         data: Option<Value>,
-    ) -> Result<Option<Value>, Box<dyn Error>> {
+    ) -> Result<ResponseType, Box<dyn Error>> {
         let host = self.config.host();
-        let uri = format!("http://{host}{path}");
+        let uri = format!("http://{host}/api{path}");
         let ha1 = &self.ha1.to_string();
         let ha2 = Self::calc_ha2(HttpMethod::POST, path).await?;
         let nonce = &self.challenge_response_data.nonce;
@@ -75,7 +85,7 @@ impl SecAuth {
                 nonce: self.challenge_response_data.nonce.to_owned(),
                 opaque: self.challenge_response_data.opaque.to_owned(),
                 realm: self.challenge_response_data.realm.to_owned(),
-                response: String::from_utf8(response_digest.to_ascii_lowercase())?,
+                response: hex::encode(response_digest),
                 user: self.config.username().to_owned(),
             },
             data,
@@ -88,22 +98,53 @@ impl SecAuth {
             .send()
             .await?;
 
-        let status = res.status();
+        let content_type = match res.headers().get("Content-Type") {
+            Some(content_type) => content_type,
+            None => Err("Incorrect or unsupported content type received")?,
+        };
 
-        let res_data = res.json::<SecPostResponse>().await?;
+        match content_type.to_str()? {
+            "application/json" => {
+                let status = res.status();
+                let res_data = res.json::<SecPostResponse>().await?;
+                Self::check_status(&status, &res_data.header)?;
 
-        Self::check_status(&status, &res_data.header)?;
+                Ok(ResponseType::Json {
+                    data: res_data.data,
+                })
+            }
+            "image/jpeg" => {
+                let bytes = res.bytes().await?;
+                Self::validate_jpeg_bytes(&bytes)?;
 
-        Ok(res_data.data)
+                Ok(ResponseType::Jpeg { data: bytes })
+            }
+            "video/mp4" => {
+                let bytes = res.bytes().await?;
+                Self::validate_mp4_bytes(&bytes)?;
+
+                Ok(ResponseType::Mp4 { data: bytes })
+            }
+            "text/plain" => Ok(ResponseType::PlainText {
+                data: res.text().await?,
+            }),
+            "application/octet-stream" => Ok(ResponseType::OctetStream {
+                data: res.bytes().await?,
+            }),
+            unsupported => {
+                Err(format!("Incorrect or unsupported content type received: {unsupported}").into())
+            }
+        }
     }
 
-    async fn calc_ha2(method: HttpMethod, path: String) -> Result<String, Box<dyn Error>> {
+    async fn calc_ha2(method: HttpMethod, path: &str) -> Result<String, Box<dyn Error>> {
         let ha2 = Sha256::digest(format!("{method}:{path}"));
 
-        Ok(String::from_utf8(ha2.to_ascii_lowercase())?)
+        Ok(hex::encode(ha2))
     }
     async fn update_ha1(&mut self) -> Result<(), Box<dyn Error>> {
-        let challenge_response = Self::get_challenge(&self.client, self.config.username()).await?;
+        let challenge_response =
+            Self::get_challenge(&self.config.host(), &self.client, self.config.username()).await?;
         let challenge_response_data = challenge_response.challenge;
 
         self.ha1 = Self::calc_ha1(&self.config, &challenge_response_data).await?;
@@ -127,21 +168,25 @@ impl SecAuth {
             false => Sha256::digest([ha1_base.as_bytes(), salt.as_slice()].concat()),
         };
 
-        Ok(String::from_utf8(ha1.to_ascii_lowercase())?)
+        Ok(hex::encode(ha1))
     }
 
     async fn get_challenge(
+        host: &String,
         client: &Client,
-        username: &String,
+        username: &str,
     ) -> Result<SecChallengeResponse, Box<dyn Error>> {
         let request_data = SecChallengeRequest {
             data: SecChallengeRequestData {
-                user: username.clone(),
+                user: username.to_owned(),
             },
         };
 
+        let path = Self::CHALLENGE_PATH;
+        let uri = format!("http://{host}/api{path}");
+
         let response: SecChallengeResponse = client
-            .post(Self::CHALLENGE_PATH)
+            .post(uri)
             .json(&request_data)
             .send()
             .await?
@@ -172,5 +217,19 @@ impl SecAuth {
 
     fn is_access_denied(status_code: &StatusCode, header: &SecPostResponseHeader) -> bool {
         status_code.is_success() && header.status == 4
+    }
+
+    fn validate_jpeg_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error>> {
+        if bytes.len() < 3 || &bytes[0..3] != &[0xFF, 0xD8, 0xFF] {
+            return Err("Invalid JPEG signature".into());
+        }
+        Ok(())
+    }
+
+    fn validate_mp4_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error>> {
+        if bytes.len() < 8 || &bytes[4..8] != b"ftyp" {
+            return Err("Invalid MP4 signature".into());
+        }
+        Ok(())
     }
 }

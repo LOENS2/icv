@@ -3,9 +3,9 @@ mod tests {
     use crate::camera::interface::CameraInterface;
     use crate::camera::sick_sec::connection::Sec;
     use crate::data::config::SickSecConfig;
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
     use serde_json::json;
     use std::error::Error;
+    use std::fs;
 
     #[tokio::test]
     async fn test_auth() -> Result<(), Box<dyn Error>> {
@@ -38,7 +38,7 @@ mod tests {
 
         let image = sec_client.capture_image().await?;
 
-        println!("{}", STANDARD.encode(image));
+        fs::write("testimg.jpeg", image)?;
 
         Ok(())
     }

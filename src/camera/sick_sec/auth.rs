@@ -60,7 +60,7 @@ impl SecAuth {
 
     pub async fn get(&self, path: String) -> Result<Value, Box<dyn Error>> {
         let host = self.config.host();
-        let uri = format!("http://{host}/api{path}");
+        let uri = format!("http://{host}{path}");
 
         let res = self.client.get(uri).send().await?.json::<Value>().await?;
 
@@ -73,9 +73,10 @@ impl SecAuth {
         data: Option<Value>,
     ) -> Result<ResponseType, Box<dyn Error>> {
         let host = self.config.host();
-        let uri = format!("http://{host}/api{path}");
+        let uri = format!("http://{host}{path}");
         let ha1 = &self.ha1.to_string();
-        let ha2 = Self::calc_ha2(HttpMethod::Post, path.strip_prefix("/").unwrap_or(path)).await?;
+        let tail = path.rsplit_once('/').map(|(_, tail)| tail).unwrap_or(path);
+        let ha2 = Self::calc_ha2(HttpMethod::Post, tail).await?;
         let nonce = &self.challenge_response_data.nonce;
 
         let response_digest = Sha256::digest(format!("{ha1}:{nonce}:{ha2}"));
@@ -203,11 +204,11 @@ impl SecAuth {
         header: &SecPostResponseHeader,
     ) -> Result<(), Box<dyn Error>> {
         if Self::is_access_denied(status_code, header) {
-            return Err("Sick SEC: Post: Access denied".into());
+            return Err(format!("Sick SEC: Post: Access denied: {}", header.message).into());
         }
 
         if !Self::is_valid(status_code, header) {
-            return Err("Sick SEC: Post: Data invalid".into());
+            return Err(format!("Sick SEC: Post: Data invalid: {}", header.message).into());
         }
 
         Ok(())

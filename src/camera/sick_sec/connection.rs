@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use serde_json::json;
 use std::error::Error;
+use std::fmt::format;
 use uuid::Uuid;
 
 pub struct Sec {
@@ -14,14 +15,17 @@ pub struct Sec {
 #[async_trait]
 impl CameraInterface for Sec {
     async fn capture_image(&self) -> Result<Bytes, Box<dyn Error>> {
-        let file_name = Uuid::new_v4().to_string();
+        const DOWNLOAD_FILE_PATH: &str = "latestSnapshot";
+        let snapshot_name = Uuid::new_v4().to_string();
 
-        self.trigger_named_snapshot(&file_name).await?;
+        self.trigger_named_snapshot(&snapshot_name).await?;
 
-        let image_data = match self.download_file(&file_name).await? {
+        let image_data = match self.download_file(DOWNLOAD_FILE_PATH).await? {
             ResponseType::Jpeg { data } => data,
             _ => return Err("Downloaded file is not a JPEG. This is an internal bug.".into()),
         };
+
+        let file_name = format!("{snapshot_name}.jpeg");
 
         self.delete_file(&file_name).await?;
 
@@ -37,7 +41,7 @@ impl Sec {
     }
 
     pub async fn check_credentials(&self) -> Result<(), Box<dyn Error>> {
-        const CHECK_CREDENTIALS_PATH: &str = "/checkCredentials";
+        const CHECK_CREDENTIALS_PATH: &str = "/api/checkCredentials";
 
         self.sec_auth.post(CHECK_CREDENTIALS_PATH, None).await?;
 
@@ -45,7 +49,7 @@ impl Sec {
     }
 
     pub async fn trigger_named_snapshot(&self, name: &String) -> Result<(), Box<dyn Error>> {
-        const TRIGGER_NAMED_SNAPSHOT_PATH: &str = "/SnapshotTriggerNamedSnapshot";
+        const TRIGGER_NAMED_SNAPSHOT_PATH: &str = "/api/SnapshotTriggerNamedSnapshot";
 
         let post_data = json!({
             "SnapshotName": name
@@ -58,7 +62,7 @@ impl Sec {
         Ok(())
     }
 
-    pub async fn download_file(&self, file_name: &String) -> Result<ResponseType, Box<dyn Error>> {
+    pub async fn download_file(&self, file_name: &str) -> Result<ResponseType, Box<dyn Error>> {
         let download_file_path = format!("/file/download/{file_name}");
 
         let response_data = self
@@ -75,7 +79,7 @@ impl Sec {
     }
 
     pub async fn delete_file(&self, file_name: &String) -> Result<(), Box<dyn Error>> {
-        const DELETE_FILE_PATH: &str = "/DeleteFile";
+        const DELETE_FILE_PATH: &str = "/api/DeleteFile";
 
         let post_data = json!({
             "fileName": file_name

@@ -38,7 +38,7 @@ mod tests {
 
         let image = sec_client.capture_image().await?;
 
-        fs::write("testimg.jpeg", image)?;
+        image.save("testimg.jpeg")?;
 
         Ok(())
     }

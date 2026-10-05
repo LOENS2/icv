@@ -2,10 +2,10 @@ use crate::camera::interface::CameraInterface;
 use crate::camera::sick_sec::auth::{ResponseType, SecAuth};
 use crate::data::config::SickSecConfig;
 use async_trait::async_trait;
-use bytes::Bytes;
+use image::{DynamicImage, ImageReader};
 use serde_json::json;
 use std::error::Error;
-use std::fmt::format;
+use std::io::Cursor;
 use uuid::Uuid;
 
 pub struct Sec {
@@ -14,14 +14,16 @@ pub struct Sec {
 
 #[async_trait]
 impl CameraInterface for Sec {
-    async fn capture_image(&self) -> Result<Bytes, Box<dyn Error>> {
+    async fn capture_image(&self) -> Result<DynamicImage, Box<dyn Error>> {
         const DOWNLOAD_FILE_PATH: &str = "latestSnapshot";
         let snapshot_name = Uuid::new_v4().to_string();
 
         self.trigger_named_snapshot(&snapshot_name).await?;
 
         let image_data = match self.download_file(DOWNLOAD_FILE_PATH).await? {
-            ResponseType::Jpeg { data } => data,
+            ResponseType::Jpeg { data } => ImageReader::new(Cursor::new(data))
+                .with_guessed_format()?
+                .decode()?,
             _ => return Err("Downloaded file is not a JPEG. This is an internal bug.".into()),
         };
 

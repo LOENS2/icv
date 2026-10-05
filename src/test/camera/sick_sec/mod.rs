@@ -2,7 +2,7 @@
 mod tests {
     use crate::camera::interface::CameraInterface;
     use crate::camera::sick_sec::connection::Sec;
-    use crate::data::config::SickSecConfig;
+    use crate::data::config::camera::sick_sec::SickSecConfig;
     use serde_json::json;
     use std::error::Error;
     use std::fs;

@@ -1,6 +1,6 @@
 use crate::camera::interface::CameraInterface;
 use crate::camera::sick_sec::auth::{ResponseType, SecAuth};
-use crate::data::config::SickSecConfig;
+use crate::data::config::camera::sick_sec::SickSecConfig;
 use async_trait::async_trait;
 use image::{DynamicImage, ImageReader};
 use serde_json::json;

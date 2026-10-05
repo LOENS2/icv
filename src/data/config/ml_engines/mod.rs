@@ -1,20 +1,8 @@
+pub mod ort;
+
+use crate::data::config::ml_engines::ort::OrtConfig;
 use serde::Deserialize;
 use std::path::PathBuf;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum OrtExecutionProvider {
-    Cpu,
-    DirectML,
-    CoreML,
-    OpenVINO,
-    MIGraphX,
-    CUDA,
-}
-#[derive(Deserialize)]
-pub struct OrtConfig {
-    execution_provider: OrtExecutionProvider,
-}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]

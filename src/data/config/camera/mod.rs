@@ -1,13 +1,7 @@
-use getset::Getters;
-use serde::Deserialize;
+pub mod sick_sec;
 
-#[derive(Deserialize, Getters)]
-#[getset(get = "pub")]
-pub struct SickSecConfig {
-    host: String,
-    username: String,
-    password: String,
-}
+use crate::data::config::camera::sick_sec::SickSecConfig;
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 #[serde(tag = "backend", rename_all = "snake_case")]

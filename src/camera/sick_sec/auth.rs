@@ -1,4 +1,4 @@
-use crate::data::config::SickSecConfig;
+use crate::data::config::camera::sick_sec::SickSecConfig;
 use crate::data::sec_api::{
     SecChallengeRequest, SecChallengeRequestData, SecChallengeResponse, SecChallengeResponseData,
     SecPostRequest, SecPostRequestHeader, SecPostResponse, SecPostResponseHeader,

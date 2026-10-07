@@ -7,6 +7,7 @@ pub mod camera;
 pub mod com;
 pub mod config;
 pub mod data;
+pub mod ml_engines;
 pub mod test;
 
 fn main() -> Result<(), Box<dyn Error>> {

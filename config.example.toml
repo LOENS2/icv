@@ -27,3 +27,9 @@ host = "172.16.0.1"
 username = "Service"
 password = "servicelevel"
 
+[ml_engine]
+backend = "ort" # can be ort or hailort (optional, default set by feature flag)
+model_dir = "./model" # uses a Hugging Face like config style for the (preprocessor) config.
+
+[ml_engine.ort]
+execution_provider = "cpu" # can be cpu, directml, coreml, openvino, migraphx, cuda (optional, default: feature flag or cpu, if multiple features)

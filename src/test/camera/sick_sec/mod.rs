@@ -5,7 +5,6 @@ mod tests {
     use crate::data::config::camera::sick_sec::SickSecConfig;
     use serde_json::json;
     use std::error::Error;
-    use std::fs;
 
     #[tokio::test]
     async fn test_auth() -> Result<(), Box<dyn Error>> {

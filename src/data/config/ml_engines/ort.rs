@@ -1,3 +1,4 @@
+use getset::Getters;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -10,7 +11,8 @@ pub enum OrtExecutionProvider {
     MIGraphX,
     CUDA,
 }
-#[derive(Deserialize)]
+#[derive(Deserialize, Getters)]
+#[getset(get = "pub")]
 pub struct OrtConfig {
     execution_provider: OrtExecutionProvider,
 }

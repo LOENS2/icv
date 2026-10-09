@@ -14,7 +14,7 @@ pub struct Sec {
 
 #[async_trait]
 impl CameraInterface for Sec {
-    async fn capture_image(&self) -> Result<DynamicImage, Box<dyn Error>> {
+    async fn capture_image(&self) -> Result<DynamicImage, Box<dyn Error + Send + Sync>> {
         const DOWNLOAD_FILE_PATH: &str = "latestSnapshot";
         let snapshot_name = Uuid::new_v4().to_string();
 
@@ -36,13 +36,13 @@ impl CameraInterface for Sec {
 }
 
 impl Sec {
-    pub async fn new(config: SickSecConfig) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(config: SickSecConfig) -> Result<Self, Box<dyn Error + Send + Sync>> {
         Ok(Self {
             sec_auth: SecAuth::new(config).await?,
         })
     }
 
-    pub async fn check_credentials(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn check_credentials(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         const CHECK_CREDENTIALS_PATH: &str = "/api/checkCredentials";
 
         self.sec_auth.post(CHECK_CREDENTIALS_PATH, None).await?;
@@ -50,7 +50,10 @@ impl Sec {
         Ok(())
     }
 
-    pub async fn trigger_named_snapshot(&self, name: &String) -> Result<(), Box<dyn Error>> {
+    pub async fn trigger_named_snapshot(
+        &self,
+        name: &String,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         const TRIGGER_NAMED_SNAPSHOT_PATH: &str = "/api/SnapshotTriggerNamedSnapshot";
 
         let post_data = json!({
@@ -64,7 +67,10 @@ impl Sec {
         Ok(())
     }
 
-    pub async fn download_file(&self, file_name: &str) -> Result<ResponseType, Box<dyn Error>> {
+    pub async fn download_file(
+        &self,
+        file_name: &str,
+    ) -> Result<ResponseType, Box<dyn Error + Send + Sync>> {
         let download_file_path = format!("/file/download/{file_name}");
 
         let response_data = self
@@ -80,7 +86,10 @@ impl Sec {
         }
     }
 
-    pub async fn delete_file(&self, file_name: &String) -> Result<(), Box<dyn Error>> {
+    pub async fn delete_file(
+        &self,
+        file_name: &String,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         const DELETE_FILE_PATH: &str = "/api/DeleteFile";
 
         let post_data = json!({

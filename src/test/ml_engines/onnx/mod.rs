@@ -10,7 +10,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[tokio::test]
-    async fn run_test_inference() -> Result<(), Box<dyn Error>> {
+    async fn run_test_inference() -> Result<(), Box<dyn Error + Send + Sync>> {
         let model_path = PathBuf::from(env::var("MODEL_PATH")?);
         let image = ImageReader::open(env::var("IMAGE_PATH")?)?.decode()?;
 
@@ -20,7 +20,7 @@ mod tests {
 
         let ort_config: OrtConfig = serde_json::from_value(ort_config_json)?;
 
-        let mut engine = OrtEngine::new(ort_config, model_path).await?;
+        let engine = OrtEngine::new(ort_config, model_path).await?;
 
         let (image_width, image_height) = image.dimensions();
         let cropped_image = image.crop_imm(

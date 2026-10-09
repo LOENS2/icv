@@ -4,6 +4,6 @@ use serde_json::Value;
 use std::error::Error;
 
 #[async_trait]
-pub trait MlEngineInterface {
-    async fn predict(&mut self, image: DynamicImage) -> Result<Value, Box<dyn Error>>;
+pub trait MlEngineInterface: Send + Sync {
+    async fn predict(&self, image: DynamicImage) -> Result<Value, Box<dyn Error + Send + Sync>>;
 }

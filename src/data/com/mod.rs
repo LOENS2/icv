@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Deserialize, Getters)]
-#[getset(get_copy = "pub")]
+#[getset(get = "pub")]
 pub struct ComRequest {
     request_id: String,
     batches: u16,

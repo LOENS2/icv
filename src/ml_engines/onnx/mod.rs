@@ -9,15 +9,16 @@ use ort::value::Tensor;
 use serde_json::Value;
 use std::error::Error;
 use std::path::PathBuf;
+use tokio::sync::Mutex;
 
 pub struct OrtEngine {
     config: OrtConfig,
-    session: Session,
+    session: Mutex<Session>,
 }
 
 #[async_trait]
 impl MlEngineInterface for OrtEngine {
-    async fn predict(&mut self, image: DynamicImage) -> Result<Value, Box<dyn Error>> {
+    async fn predict(&self, image: DynamicImage) -> Result<Value, Box<dyn Error + Send + Sync>> {
         const TARGET_WIDTH: u32 = 1024;
         const TARGET_HEIGHT: u32 = 1024;
 
@@ -41,16 +42,17 @@ impl MlEngineInterface for OrtEngine {
             b_slice[i] = pixel[2] as f32 / 255.0;
         }
 
-        let input_name = self.session.inputs()[0].name().to_owned();
-        let output_name = self.session.outputs()[0].name().to_owned();
+        let mut session = self.session.lock().await;
+
+        let input_name = session.inputs()[0].name().to_owned();
+        let output_name = session.outputs()[0].name().to_owned();
         let input_tensor = Tensor::from_array((
             [1, 3, TARGET_HEIGHT as i64, TARGET_WIDTH as i64],
             resized_image_array,
         ))?;
 
         let run_options = RunOptions::new()?;
-        let outputs = self
-            .session
+        let outputs = session
             .run_async(ort::inputs![input_name => input_tensor], &run_options)?
             .await?;
         let predictions = outputs[output_name].try_extract_array::<f32>()?;
@@ -62,7 +64,10 @@ impl MlEngineInterface for OrtEngine {
 }
 
 impl OrtEngine {
-    pub async fn new(config: OrtConfig, model_dir: PathBuf) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(
+        config: OrtConfig,
+        model_dir: PathBuf,
+    ) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let session = Session::builder()?
             .with_execution_providers([
                 #[cfg(feature = "tensorrt")]
@@ -79,9 +84,13 @@ impl OrtEngine {
                 ep::CoreML::default().build(),
                 #[cfg(feature = "cpu")]
                 ep::CPU::default().build(),
-            ])?
+            ])
+            .map_err(|e| Box::<dyn Error + Send + Sync>::from(e.to_string()))?
             .commit_from_file(model_dir.join("model.onnx"))?;
 
-        Ok(Self { config, session })
+        Ok(Self {
+            config,
+            session: Mutex::new(session),
+        })
     }
 }

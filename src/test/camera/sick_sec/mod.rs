@@ -7,7 +7,7 @@ mod tests {
     use std::error::Error;
 
     #[tokio::test]
-    async fn test_auth() -> Result<(), Box<dyn Error>> {
+    async fn test_auth() -> Result<(), Box<dyn Error + Send + Sync>> {
         let sec_config_json = json!({
             "host": "172.31.45.146".to_string(),
             "username": "Service".to_string(),
@@ -24,7 +24,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_capture_image() -> Result<(), Box<dyn Error>> {
+    async fn test_capture_image() -> Result<(), Box<dyn Error + Send + Sync>> {
         let sec_config_json = json!({
             "host": "172.31.45.146".to_string(),
             "username": "Service".to_string(),

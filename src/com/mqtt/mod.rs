@@ -11,45 +11,72 @@ use rumqttc::v5::{Event, EventLoop};
 use serde_json::ser::to_string;
 use std::error::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::task::JoinHandle;
 
 pub struct ComMqtt<'config> {
     config: &'config MqttConfig,
     client: AsyncClient,
-    event_loop: EventLoop,
+    event_loop: Option<EventLoop>,
     qos: QoS,
 }
 
 #[async_trait]
 impl<'config> ComInterface for ComMqtt<'config> {
-    async fn receive_data(&mut self, inbound_tx: Sender<ComRequest>) -> Result<(), Box<dyn Error>> {
+    async fn start_receive(
+        &mut self,
+        inbound_tx: Sender<ComRequest>,
+    ) -> Result<JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>, Box<dyn Error + Send + Sync>>
+    {
+        let mut event_loop = match self.event_loop.take() {
+            Some(event_loop) => event_loop,
+            None => {
+                return Err(
+                    "Event loop has already been taken. You likely called start_receive twice!"
+                        .into(),
+                );
+            }
+        };
+
         self.client.subscribe(self.config.topic(), self.qos).await?;
 
-        while let Event::Incoming(Incoming::Publish(publish)) = self.event_loop.poll().await? {
-            if publish.topic != self.config.topic() {
-                continue;
+        let topic = self.config.topic().to_owned();
+        let handle = tokio::spawn(async move {
+            while let Event::Incoming(Incoming::Publish(publish)) = event_loop.poll().await? {
+                if publish.topic != topic {
+                    continue;
+                }
+
+                let payload_data: ComRequest = serde_json::from_slice(publish.payload.as_bytes())?;
+
+                inbound_tx.send(payload_data).await?;
             }
 
-            let payload_data: ComRequest = serde_json::from_slice(publish.payload.as_bytes())?;
+            Ok(())
+        });
 
-            inbound_tx.send(payload_data).await?;
-        }
-
-        Ok(())
+        Ok(handle)
     }
 
-    async fn send_data(
+    async fn start_send(
         &mut self,
-        outbound_rx: &mut Receiver<ComResponse>,
-    ) -> Result<(), Box<dyn Error>> {
-        while let Some(data) = outbound_rx.recv().await {
-            let payload = to_string(&data)?;
+        mut outbound_rx: Receiver<ComResponse>,
+    ) -> Result<JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>, Box<dyn Error + Send + Sync>>
+    {
+        let qos = self.qos.clone();
+        let topic = self.config.topic().to_owned();
+        let client = self.client.clone();
 
-            self.client
-                .publish(self.config.topic(), self.qos, false, payload)
-                .await?;
-        }
+        let handle = tokio::spawn(async move {
+            while let Some(data) = outbound_rx.recv().await {
+                let payload = to_string(&data)?;
 
-        Ok(())
+                client.publish(&topic, qos, false, payload).await?;
+            }
+
+            Ok(())
+        });
+
+        Ok(handle)
     }
 }
 
@@ -84,7 +111,7 @@ impl<'config> ComMqtt<'config> {
         Ok(Self {
             config,
             client,
-            event_loop,
+            event_loop: Some(event_loop),
             qos,
         })
     }

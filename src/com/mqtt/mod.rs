@@ -13,15 +13,15 @@ use std::error::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
-pub struct ComMqtt<'config> {
-    config: &'config MqttConfig,
+pub struct ComMqtt {
+    config: MqttConfig,
     client: AsyncClient,
     event_loop: Option<EventLoop>,
     qos: QoS,
 }
 
 #[async_trait]
-impl<'config> ComInterface for ComMqtt<'config> {
+impl ComInterface for ComMqtt {
     async fn start_receive(
         &mut self,
         inbound_tx: Sender<ComRequest>,
@@ -80,9 +80,9 @@ impl<'config> ComInterface for ComMqtt<'config> {
     }
 }
 
-impl<'config> ComMqtt<'config> {
+impl ComMqtt {
     const CHANNEL_CAPACITY: usize = 10;
-    pub async fn new(config: &'config MqttConfig) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(config: MqttConfig) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let mut mqtt_options = MqttOptions::new(config.client_id(), config.host(), config.port());
 
         if let Some(username) = config.username()

@@ -5,11 +5,11 @@ pub mod ml_engines;
 use crate::data::config::camera::CameraConfig;
 use crate::data::config::com::ComConfig;
 use crate::data::config::ml_engines::MlEngineConfig;
-use getset::Getters;
+use getset::CloneGetters;
 use serde::Deserialize;
 
-#[derive(Deserialize, Getters)]
-#[getset(get = "pub")]
+#[derive(Deserialize, CloneGetters)]
+#[getset(get_clone = "pub")]
 pub struct IcvConfig {
     communication: ComConfig,
     camera: CameraConfig,

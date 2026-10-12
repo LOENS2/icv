@@ -2,7 +2,7 @@ use getset::{CopyGetters, Getters};
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
-#[derive(Deserialize_repr)]
+#[derive(Deserialize_repr, Clone)]
 #[repr(u8)]
 pub enum MqttQoS {
     AtMostOnce = 0,
@@ -10,7 +10,7 @@ pub enum MqttQoS {
     ExactlyOnce = 2,
 }
 
-#[derive(Deserialize, Getters, CopyGetters)]
+#[derive(Deserialize, Getters, CopyGetters, Clone)]
 #[getset(get = "pub")]
 pub struct MqttConfig {
     host: String,

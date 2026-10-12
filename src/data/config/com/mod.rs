@@ -5,7 +5,7 @@ use serde::Deserialize;
 pub mod mqtt;
 pub mod opcua;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "backend", rename_all = "snake_case")]
 pub enum ComConfig {
     Opcua {

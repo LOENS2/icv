@@ -66,7 +66,7 @@ impl MlEngineInterface for OrtEngine {
 impl OrtEngine {
     pub async fn new(
         config: OrtConfig,
-        model_dir: PathBuf,
+        model_dir: &PathBuf,
     ) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let session = Session::builder()?
             .with_execution_providers([

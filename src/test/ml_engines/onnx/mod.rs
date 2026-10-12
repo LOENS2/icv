@@ -20,7 +20,7 @@ mod tests {
 
         let ort_config: OrtConfig = serde_json::from_value(ort_config_json)?;
 
-        let engine = OrtEngine::new(ort_config, model_path).await?;
+        let engine = OrtEngine::new(ort_config, &model_path).await?;
 
         let (image_width, image_height) = image.dimensions();
         let cropped_image = image.crop_imm(

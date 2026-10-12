@@ -3,6 +3,7 @@ use crate::data::com::{ComRequest, ComResponse};
 use crate::data::config::com::mqtt::{MqttConfig, MqttQoS};
 use async_trait::async_trait;
 use image::EncodableLayout;
+use log::{debug, error};
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::Incoming;
 use rumqttc::v5::MqttOptions;
@@ -10,6 +11,7 @@ use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{Event, EventLoop};
 use serde_json::ser::to_string;
 use std::error::Error;
+use std::time::Duration;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
@@ -26,7 +28,7 @@ impl ComInterface for ComMqtt {
         &mut self,
         inbound_tx: Sender<ComRequest>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut event_loop = match self.event_loop.take() {
+        let event_loop = match self.event_loop.take() {
             Some(event_loop) => event_loop,
             None => {
                 return Err(
@@ -36,50 +38,32 @@ impl ComInterface for ComMqtt {
             }
         };
 
-        self.client.subscribe(self.config.topic(), self.qos).await?;
+        let topic = format!("{}/command", self.config.topic());
 
-        let topic = self.config.topic().to_owned();
-        let handle: JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> =
-            tokio::spawn(async move {
-                while let Event::Incoming(Incoming::Publish(publish)) = event_loop.poll().await? {
-                    if publish.topic != topic {
-                        continue;
-                    }
+        self.client.subscribe(&topic, self.qos).await?;
 
-                    let payload_data: ComRequest =
-                        serde_json::from_slice(publish.payload.as_bytes())?;
-
-                    inbound_tx.send(payload_data).await?;
-                }
-
-                Ok(())
-            });
-
-        handle.await??;
+        tokio::spawn(async move {
+            if let Err(e) = Self::receive_task(event_loop, topic, inbound_tx).await {
+                error!("Error in start receive: {e:?}");
+            }
+        });
 
         Ok(())
     }
 
     async fn start_send(
         &mut self,
-        mut outbound_rx: Receiver<ComResponse>,
+        outbound_rx: Receiver<ComResponse>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let qos = self.qos.clone();
-        let topic = self.config.topic().to_owned();
+        let topic = format!("{}/result", self.config.topic());
         let client = self.client.clone();
 
-        let handle: JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> =
-            tokio::spawn(async move {
-                while let Some(data) = outbound_rx.recv().await {
-                    let payload = to_string(&data)?;
-
-                    client.publish(&topic, qos, false, payload).await?;
-                }
-
-                Ok(())
-            });
-
-        handle.await??;
+        tokio::spawn(async move {
+            if let Err(e) = Self::send_task(outbound_rx, client, topic, qos).await {
+                error!("Error in start send: {e:?}");
+            }
+        });
 
         Ok(())
     }
@@ -119,5 +103,46 @@ impl ComMqtt {
             event_loop: Some(event_loop),
             qos,
         })
+    }
+
+    async fn receive_task(
+        mut event_loop: EventLoop,
+        topic: String,
+        inbound_tx: Sender<ComRequest>,
+    ) -> Result<(), Box<dyn Error>> {
+        loop {
+            let event = event_loop.poll().await?;
+
+            match event {
+                Event::Incoming(Incoming::Publish(publish)) => {
+                    if publish.topic != topic {
+                        continue;
+                    }
+
+                    let payload_data: ComRequest =
+                        serde_json::from_slice(publish.payload.as_bytes())?;
+
+                    inbound_tx.send(payload_data).await?;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    async fn send_task(
+        mut outbound_rx: Receiver<ComResponse>,
+        client: AsyncClient,
+        topic: String,
+        qos: QoS,
+    ) -> Result<(), Box<dyn Error>> {
+        while let Some(data) = outbound_rx.recv().await {
+            let payload = to_string(&data)?;
+
+            client.publish(&topic, qos, false, payload).await?;
+        }
+
+        debug!("Send loop has exited. This is bad!");
+
+        Ok::<(), Box<dyn Error>>(())
     }
 }

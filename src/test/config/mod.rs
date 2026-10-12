@@ -40,7 +40,7 @@ password = "servicelevel""#;
             .add_source(File::from_str(CONFIG, FileFormat::Toml))
             .build()?;
 
-        let config: IcvConfig = settings.try_deserialize::<IcvConfig>()?;
+        let _config: IcvConfig = settings.try_deserialize::<IcvConfig>()?;
 
         Ok(())
     }

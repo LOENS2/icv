@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
 
     let com_interface: Box<dyn ComInterface> = match config.communication() {
-        ComConfig::Opcua { opcua_config } => {
+        ComConfig::OpcUa { opcua_config } => {
             todo!("OPC UA not implemented yet {}", opcua_config.host())
         }
         ComConfig::Mqtt { mqtt_config } => Box::new(ComMqtt::new(mqtt_config).await?),

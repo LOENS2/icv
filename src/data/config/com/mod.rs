@@ -6,9 +6,9 @@ pub mod mqtt;
 pub mod opcua;
 
 #[derive(Deserialize, Clone)]
-#[serde(tag = "backend", rename_all = "snake_case")]
+#[serde(tag = "backend", rename_all = "lowercase")]
 pub enum ComConfig {
-    Opcua {
+    OpcUa {
         #[serde(rename = "opcua")]
         opcua_config: OpcUaConfig,
     },

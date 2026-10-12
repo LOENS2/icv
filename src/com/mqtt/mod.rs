@@ -25,8 +25,7 @@ impl ComInterface for ComMqtt {
     async fn start_receive(
         &mut self,
         inbound_tx: Sender<ComRequest>,
-    ) -> Result<JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>, Box<dyn Error + Send + Sync>>
-    {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut event_loop = match self.event_loop.take() {
             Some(event_loop) => event_loop,
             None => {
@@ -40,43 +39,49 @@ impl ComInterface for ComMqtt {
         self.client.subscribe(self.config.topic(), self.qos).await?;
 
         let topic = self.config.topic().to_owned();
-        let handle = tokio::spawn(async move {
-            while let Event::Incoming(Incoming::Publish(publish)) = event_loop.poll().await? {
-                if publish.topic != topic {
-                    continue;
+        let handle: JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> =
+            tokio::spawn(async move {
+                while let Event::Incoming(Incoming::Publish(publish)) = event_loop.poll().await? {
+                    if publish.topic != topic {
+                        continue;
+                    }
+
+                    let payload_data: ComRequest =
+                        serde_json::from_slice(publish.payload.as_bytes())?;
+
+                    inbound_tx.send(payload_data).await?;
                 }
 
-                let payload_data: ComRequest = serde_json::from_slice(publish.payload.as_bytes())?;
+                Ok(())
+            });
 
-                inbound_tx.send(payload_data).await?;
-            }
+        handle.await??;
 
-            Ok(())
-        });
-
-        Ok(handle)
+        Ok(())
     }
 
     async fn start_send(
         &mut self,
         mut outbound_rx: Receiver<ComResponse>,
-    ) -> Result<JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>, Box<dyn Error + Send + Sync>>
-    {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let qos = self.qos.clone();
         let topic = self.config.topic().to_owned();
         let client = self.client.clone();
 
-        let handle = tokio::spawn(async move {
-            while let Some(data) = outbound_rx.recv().await {
-                let payload = to_string(&data)?;
+        let handle: JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> =
+            tokio::spawn(async move {
+                while let Some(data) = outbound_rx.recv().await {
+                    let payload = to_string(&data)?;
 
-                client.publish(&topic, qos, false, payload).await?;
-            }
+                    client.publish(&topic, qos, false, payload).await?;
+                }
 
-            Ok(())
-        });
+                Ok(())
+            });
 
-        Ok(handle)
+        handle.await??;
+
+        Ok(())
     }
 }
 

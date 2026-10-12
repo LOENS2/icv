@@ -18,8 +18,8 @@ pub async fn run_app(
     let (inbound_tx, mut inbound_rx) = mpsc::channel::<ComRequest>(BUFFER_SIZE);
     let (outbound_tx, outbound_rx) = mpsc::channel::<ComResponse>(BUFFER_SIZE);
 
-    communication.start_receive(inbound_tx).await?.await??;
-    communication.start_send(outbound_rx).await?.await??;
+    communication.start_receive(inbound_tx).await?;
+    communication.start_send(outbound_rx).await?;
 
     while let Some(msg) = inbound_rx.recv().await {
         let camera = camera.clone();

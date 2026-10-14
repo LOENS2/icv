@@ -3,7 +3,7 @@ pub mod sick_sec;
 use crate::data::config::camera::sick_sec::SickSecConfig;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "backend", rename_all = "snake_case")]
 pub enum CameraConfig {
     SickSec {

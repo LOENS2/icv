@@ -42,7 +42,7 @@ impl Display for HttpMethod {
 impl SecAuth {
     const CHALLENGE_PATH: &'static str = "/getChallenge";
 
-    pub async fn new(config: SickSecConfig) -> Result<Self, Box<dyn Error>> {
+    pub async fn new(config: SickSecConfig) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let client = Client::new();
 
         let challenge_response =
@@ -58,7 +58,7 @@ impl SecAuth {
         })
     }
 
-    pub async fn get(&self, path: String) -> Result<Value, Box<dyn Error>> {
+    pub async fn get(&self, path: String) -> Result<Value, Box<dyn Error + Send + Sync>> {
         let host = self.config.host();
         let uri = format!("http://{host}{path}");
 
@@ -71,7 +71,7 @@ impl SecAuth {
         &self,
         path: &str,
         data: Option<Value>,
-    ) -> Result<ResponseType, Box<dyn Error>> {
+    ) -> Result<ResponseType, Box<dyn Error + Send + Sync>> {
         let host = self.config.host();
         let uri = format!("http://{host}{path}");
         let ha1 = &self.ha1.to_string();
@@ -141,7 +141,7 @@ impl SecAuth {
     async fn calc_ha1(
         config: &SickSecConfig,
         sec_challenge_response_data: &SecChallengeResponseData,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         let username = config.username();
         let realm = &sec_challenge_response_data.realm;
         let password = config.password();
@@ -158,12 +158,15 @@ impl SecAuth {
         Ok(hex::encode(ha1))
     }
 
-    async fn calc_ha2(method: HttpMethod, path: &str) -> Result<String, Box<dyn Error>> {
+    async fn calc_ha2(
+        method: HttpMethod,
+        path: &str,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         let ha2 = Sha256::digest(format!("{method}:{path}"));
 
         Ok(hex::encode(ha2))
     }
-    async fn update_ha1(&mut self) -> Result<(), Box<dyn Error>> {
+    async fn update_ha1(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let challenge_response =
             Self::get_challenge(self.config.host(), &self.client, self.config.username()).await?;
         let challenge_response_data = challenge_response.challenge;
@@ -178,7 +181,7 @@ impl SecAuth {
         host: &String,
         client: &Client,
         username: &str,
-    ) -> Result<SecChallengeResponse, Box<dyn Error>> {
+    ) -> Result<SecChallengeResponse, Box<dyn Error + Send + Sync>> {
         let request_data = SecChallengeRequest {
             data: SecChallengeRequestData {
                 user: username.to_owned(),
@@ -202,7 +205,7 @@ impl SecAuth {
     fn check_status(
         status_code: &StatusCode,
         header: &SecPostResponseHeader,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if Self::is_access_denied(status_code, header) {
             return Err(format!("Sick SEC: Post: Access denied: {}", header.message).into());
         }
@@ -222,14 +225,14 @@ impl SecAuth {
         status_code.is_success() && header.status == 4
     }
 
-    fn validate_jpeg_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error>> {
+    fn validate_jpeg_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error + Send + Sync>> {
         if bytes.len() < 3 || bytes[0..3] != [0xFF, 0xD8, 0xFF] {
             return Err("Invalid JPEG signature".into());
         }
         Ok(())
     }
 
-    fn validate_mp4_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error>> {
+    fn validate_mp4_bytes(bytes: &Bytes) -> Result<(), Box<dyn Error + Send + Sync>> {
         if bytes.len() < 8 || &bytes[4..8] != b"ftyp" {
             return Err("Invalid MP4 signature".into());
         }

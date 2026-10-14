@@ -1,14 +1,14 @@
-use crate::data::config::comm::mqtt::MqttConfig;
-use crate::data::config::comm::opcua::OpcUaConfig;
+use crate::data::config::com::mqtt::MqttConfig;
+use crate::data::config::com::opcua::OpcUaConfig;
 use serde::Deserialize;
 
 pub mod mqtt;
 pub mod opcua;
 
-#[derive(Deserialize)]
-#[serde(tag = "backend", rename_all = "snake_case")]
-pub enum CommConfig {
-    Opcua {
+#[derive(Deserialize, Clone)]
+#[serde(tag = "backend", rename_all = "lowercase")]
+pub enum ComConfig {
+    OpcUa {
         #[serde(rename = "opcua")]
         opcua_config: OpcUaConfig,
     },

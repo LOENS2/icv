@@ -8,7 +8,7 @@ license = "AGPL-3"
 async-opcua = "0.19.0"
 onnxruntime = "0.0.14"
 reqwest = { version = "0.13.4", features = ["json"] }
-rust-mqtt = "0.6.0"
+rumqttc = "0.25.1"
 rustls = "0.23.43"
 serde_json = "1.0.151"
 async-trait = "0.1.92"
@@ -25,6 +25,7 @@ hex = "0.4.3"
 uuid = { version = "1.26.1", features = ["v4"] }
 image = "0.25.10"
 ort = "2.0.0-rc.13"
+log = "0.4.34"
 
 [features]
 default = ["cpu"]

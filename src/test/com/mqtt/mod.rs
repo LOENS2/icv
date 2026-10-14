@@ -64,15 +64,77 @@ mod tests {
 
         time::sleep(Duration::from_secs(1)).await;
 
-        for _ in 0..10 {
+        for idx in 0..10 {
             let request = ComResponse {
-                request_id: "same_id".to_string(),
+                request_id: format! {"id_{idx}"},
                 result: vec![Value::Null],
             };
 
             outbound_tx.send(request).await?;
 
             time::sleep(Duration::from_millis(50)).await;
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_receive() -> Result<(), Box<dyn Error + Send + Sync>> {
+        SimpleLogger::new().init()?;
+
+        let mqtt_config = get_mqtt_config()?;
+
+        let mut mqtt = ComMqtt::new(mqtt_config).await?;
+
+        let (inbound_tx, mut inbound_rx) = mpsc::channel::<ComRequest>(BUFFER_SIZE);
+
+        mqtt.start_receive(inbound_tx).await?;
+
+        let mut index: u8 = 0;
+
+        while let Some(message) = inbound_rx.recv().await {
+            assert_eq!(message.request_id().to_string(), format!("id_{index}"));
+
+            if index > 8 {
+                break;
+            }
+
+            index += 1;
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_send_receive() -> Result<(), Box<dyn Error + Send + Sync>> {
+        SimpleLogger::new().init()?;
+
+        let mqtt_config = get_mqtt_config()?;
+
+        let mut mqtt = ComMqtt::new(mqtt_config).await?;
+
+        let (inbound_tx, mut inbound_rx) = mpsc::channel::<ComRequest>(BUFFER_SIZE);
+        let (outbound_tx, outbound_rx) = mpsc::channel::<ComResponse>(BUFFER_SIZE);
+
+        mqtt.start_receive(inbound_tx).await?;
+        mqtt.start_send(outbound_rx).await?;
+
+        let mut index: u8 = 0;
+
+        while let Some(message) = inbound_rx.recv().await {
+            assert_eq!(message.request_id().to_string(), format!("id_{index}"));
+            let response = ComResponse {
+                request_id: message.request_id().to_owned(),
+                result: vec![Value::Null],
+            };
+
+            outbound_tx.send(response).await?;
+
+            if index > 8 {
+                break;
+            }
+
+            index += 1;
         }
 
         Ok(())

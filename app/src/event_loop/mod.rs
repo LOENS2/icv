@@ -1,7 +1,7 @@
-use crate::camera::interface::CameraInterface;
 use crate::com::interface::ComInterface;
 use crate::data::com::{ComRequest, ComResponse};
 use crate::ml_engines::interface::MlEngineInterface;
+use camera::interface::CameraInterface;
 use opcua::core::tracing::error;
 use std::error::Error;
 use std::sync::Arc;

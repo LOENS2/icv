@@ -1,8 +1,8 @@
 use crate::data::config::ml_engines::ort::OrtConfig;
 use crate::ml_engines::interface::MlEngineInterface;
 use async_trait::async_trait;
-use image::DynamicImage;
 use image::imageops::FilterType;
+use image::DynamicImage;
 use ort::ep;
 use ort::session::{RunOptions, Session};
 use ort::value::Tensor;

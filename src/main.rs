@@ -5,6 +5,8 @@ pub mod config;
 pub mod data;
 pub mod event_loop;
 pub mod ml_engines;
+pub mod postprocessors;
+pub mod preprocessors;
 pub mod test;
 
 use crate::argparse::parse_arguments;

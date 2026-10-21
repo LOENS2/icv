@@ -5,7 +5,7 @@ mod tests {
     use crate::data::com::{ComRequest, ComResponse};
     use crate::data::config::com::mqtt::MqttConfig;
     use log::debug;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use simple_logger::SimpleLogger;
     use std::env;
     use std::error::Error;

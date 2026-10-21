@@ -17,7 +17,7 @@ serde = "1.0.229"
 config = "0.15.27"
 serde_repr = "0.1.21"
 getset = "0.1.7"
-tokio = "1.54.0"
+tokio = { version = "1.54.0", features = ["full"] }
 image = "0.25.10"
 ort = "2.0.0-rc.13"
 log = "0.4.34"

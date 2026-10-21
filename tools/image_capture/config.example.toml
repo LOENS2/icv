@@ -1,5 +1,5 @@
 output_dir = "./data"
-name_template = "image_%YYYY-%MM-%DD_%HH:%MM:%SS"
+name_template = "image_%Y-%m-%d_%H:%M:%S.jpg"
 
 [camera]
 backend = "sick_sec"

@@ -1544,6 +1544,7 @@ dependencies = [
 name = "icv-image-capture"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "clap",
  "config",
  "getset",

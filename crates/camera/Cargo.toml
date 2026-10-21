@@ -3,8 +3,6 @@ name = "icv-camera"
 version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
-license.workspace = true
-license-file.workspace = true
 
 [dependencies]
 async-trait = "0.1.92"

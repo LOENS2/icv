@@ -1,4 +1,8 @@
-use std::fmt::Arguments;
+mod config;
+
+use ::config::{Config, File};
+use clap::Parser;
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -8,13 +12,14 @@ pub struct Arguments {
 }
 
 #[tokio::main]
-fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = Arguments::parse();
 
     let config_file = args.config_file;
 
     let settings = Config::builder()
         .add_source(File::with_name(config_file.as_str()))
-        .add_source(Environment::with_prefix("ICV"))
         .build()?;
+
+    Ok(())
 }

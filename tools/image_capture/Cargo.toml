@@ -1,9 +1,13 @@
 [package]
-name = "image_capture"
+name = "icv-image-capture"
 version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
-license.workspace = true
-license-file.workspace = true
 
 [dependencies]
+tokio = "1.54.0"
+clap = { version = "4.6.7", features = ["derive"] }
+config = "0.15.27"
+serde = { version = "1.0.229", features = ["derive"] }
+getset = "0.1.7"
+icv-camera = { path = "../../crates/camera" }

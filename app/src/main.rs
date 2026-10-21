@@ -1,5 +1,4 @@
 pub mod argparse;
-pub mod camera;
 pub mod com;
 pub mod config;
 pub mod data;
@@ -8,17 +7,17 @@ pub mod ml_engines;
 pub mod test;
 
 use crate::argparse::parse_arguments;
-use crate::camera::interface::CameraInterface;
-use crate::camera::sick_sec::connection::Sec;
 use crate::com::interface::ComInterface;
 use crate::com::mqtt::ComMqtt;
 use crate::config::parser::parse_config;
-use crate::data::config::camera::CameraConfig;
 use crate::data::config::com::ComConfig;
 use crate::data::config::ml_engines::MlEngineBackend;
 use crate::event_loop::run_app;
 use crate::ml_engines::interface::MlEngineInterface;
 use crate::ml_engines::onnx::OrtEngine;
+use icv_camera::camera::interface::CameraInterface;
+use icv_camera::camera::sick_sec::connection::Sec;
+use icv_camera::data::config::camera::CameraConfig;
 use simple_logger::SimpleLogger;
 use std::error::Error;
 use std::sync::Arc;

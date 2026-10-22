@@ -2,7 +2,7 @@ mod config;
 
 use crate::config::ImageCaptureConfig;
 use ::config::{Config, File};
-use chrono::{Local, NaiveDateTime, TimeZone, Utc};
+use chrono::Local;
 use clap::Parser;
 use icv_camera::camera::interface::CameraInterface;
 use icv_camera::camera::sick_sec::connection::Sec;

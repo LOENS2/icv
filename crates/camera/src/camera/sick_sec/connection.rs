@@ -6,6 +6,7 @@ use image::{DynamicImage, ImageReader};
 use serde_json::json;
 use std::error::Error;
 use std::io::Cursor;
+use tokio::time;
 use uuid::Uuid;
 
 pub struct Sec {
@@ -19,6 +20,8 @@ impl CameraInterface for Sec {
         let snapshot_name = Uuid::new_v4().to_string();
 
         self.trigger_named_snapshot(&snapshot_name).await?;
+
+        time::sleep(time::Duration::from_millis(50)).await;
 
         let image_data = match self.download_file(DOWNLOAD_FILE_PATH).await? {
             ResponseType::Jpeg { data } => ImageReader::new(Cursor::new(data))

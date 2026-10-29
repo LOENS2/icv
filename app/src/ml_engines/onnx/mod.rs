@@ -68,7 +68,9 @@ impl OrtEngine {
         config: OrtConfig,
         model_dir: &PathBuf,
     ) -> Result<Self, Box<dyn Error + Send + Sync>> {
-        let session = Session::builder()?
+        let env = ort::init().build()?;
+
+        let session = Session::builder(&env)?
             .with_execution_providers([
                 #[cfg(feature = "tensorrt")]
                 ep::TensorRT::default().build(),

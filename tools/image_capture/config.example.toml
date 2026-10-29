@@ -1,0 +1,10 @@
+output_dir = "./data"
+name_template = "image_%Y-%m-%d_%H:%M:%S.jpg"
+
+[camera]
+backend = "sick_sec"
+
+[camera.sick_sec]
+host = "172.16.0.1"
+username = "Service"
+password = "servicelevel"

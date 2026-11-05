@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/app/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/camera/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tools/image_capture/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tools/v4l_api/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/crates/camera/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

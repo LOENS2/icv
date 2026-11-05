@@ -4375,6 +4375,9 @@ dependencies = [
  "actix-web",
  "clap",
  "config",
+ "getset",
+ "image",
+ "serde",
  "v4l",
  "yuvutils-rs",
 ]

@@ -13,6 +13,7 @@ pub enum CameraConfig {
         sick_sec_config: SickSecConfig,
     },
     Http {
+        #[serde(rename = "http")]
         http_config: HttpConfig,
     },
 }

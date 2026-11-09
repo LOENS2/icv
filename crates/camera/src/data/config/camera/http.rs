@@ -1,8 +1,8 @@
-use getset::CopyGetters;
+use getset::Getters;
 use serde::Deserialize;
 
-#[derive(Deserialize, CopyGetters, Clone)]
-#[getset(get_copy = "pub")]
+#[derive(Deserialize, Getters, Clone)]
+#[getset(get = "pub")]
 pub struct HttpConfig {
     url: String,
 }

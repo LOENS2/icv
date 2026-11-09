@@ -24,7 +24,9 @@ impl CameraInterface for Http {
 }
 
 impl Http {
-    pub async fn new(url: String) -> Result<Self, Box<dyn Error + Send + Sync>> {
-        Ok(Self { url })
+    pub async fn new(url: &String) -> Result<Self, Box<dyn Error + Send + Sync>> {
+        Ok(Self {
+            url: url.to_owned(),
+        })
     }
 }

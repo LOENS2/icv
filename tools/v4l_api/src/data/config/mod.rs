@@ -3,8 +3,8 @@ use crate::data::config::web::WebConfig;
 use getset::Getters;
 use serde::Deserialize;
 
-mod v4l;
-mod web;
+pub mod v4l;
+pub mod web;
 
 #[derive(Deserialize, Getters)]
 #[getset(get = "pub")]

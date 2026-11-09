@@ -1,15 +1,16 @@
 use crate::argparse::parse_arguments;
 use crate::config::load_config;
 use crate::data::web::AppState;
+use crate::v4l::V4lCapture;
 use crate::web::handler::get_image;
 use actix_web::{App, HttpServer, web::Data};
 use std::error::Error;
-use std::sync::Arc;
-use v4l::Device;
+use std::sync::{Arc, Mutex};
 
 pub mod argparse;
 pub mod config;
 mod data;
+pub mod v4l;
 mod web;
 
 #[actix_web::main]
@@ -21,13 +22,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let host = config.web().host();
     let port = config.web().port().to_owned();
 
-    let device_id = config.v4l().device_id().to_owned();
-    let mut dev = Device::new(device_id)?;
+    let v4l_capture = Arc::new(V4lCapture::new(config.v4l()).await);
 
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(AppState {
-                v4l_device: Arc::new(dev),
+                v4l_capture: v4l_capture.clone(),
             }))
             .service(get_image)
     })

@@ -6,5 +6,7 @@ use serde::Deserialize;
 pub struct WebConfig {
     host: String,
     port: u16,
-    auth: String,
+    auth_type: String,
+    username: String,
+    password: String,
 }

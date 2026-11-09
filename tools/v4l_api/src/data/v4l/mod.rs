@@ -1,4 +1,4 @@
-use linux_video::types::Format;
+use tokio_linux_video::types::Format;
 
 pub enum CaptureRequest {
     Capture {

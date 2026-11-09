@@ -1,12 +1,14 @@
+mod mplane_mmap;
+
 use crate::data::config::v4l::V4lConfig;
 use crate::data::v4l::CaptureRequest;
 use image::{DynamicImage, RgbImage};
-use linux_video::Device;
-use linux_video::types::{BufferType, ContentType, FourCc, In, Mmap, PixFormatMplane};
 use log::{debug, error};
 use std::error::Error;
+use tokio::runtime::Builder;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task;
+use tokio_linux_video::types::{FourCc, PixFormatMplane};
 use yuvutils_rs::{
     YuvBiPlanarImage, YuvConversionMode, YuvRange, YuvStandardMatrix, yuv_nv12_to_rgb,
 };
@@ -23,7 +25,15 @@ impl V4lCapture {
         let (to_thread_tx, to_thread_rx) = mpsc::channel::<CaptureRequest>(8);
 
         task::spawn_blocking(move || {
-            if let Err(e) = Self::capture_thread(&device_path, to_thread_rx) {
+            let rt = match Builder::new_current_thread().enable_all().build() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    error!("Failed to build capture runtime: {e}");
+                    return;
+                }
+            };
+
+            if let Err(e) = rt.block_on(mplane_mmap::capture_thread(&device_path, to_thread_rx)) {
                 error!("Error in capture thread: {e}");
             }
         });
@@ -130,30 +140,5 @@ impl V4lCapture {
             RgbImage::from_raw(width, height, data_rgb).ok_or("Failed to create RGB image")?;
 
         Ok(DynamicImage::ImageRgb8(rgb_image))
-    }
-
-    fn capture_thread(
-        device_path: &str,
-        mut rx: mpsc::Receiver<CaptureRequest>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let device = Device::open(device_path)?;
-
-        let format = device.format(BufferType::VideoCaptureMplane)?;
-        debug!("Format: {format}");
-
-        let stream = device.stream::<In, Mmap>(ContentType::VideoMplane, 4)?;
-
-        while let Some(request) = rx.blocking_recv() {
-            match request {
-                CaptureRequest::Capture { response } => {
-                    let buffer = stream.next()?;
-                    let data = buffer.lock();
-                    let bytes = data.as_ref().to_vec();
-                    let _ = response.send((format.clone(), bytes));
-                }
-            }
-        }
-
-        Ok(())
     }
 }

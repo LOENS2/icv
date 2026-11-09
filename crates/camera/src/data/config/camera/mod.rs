@@ -10,4 +10,7 @@ pub enum CameraConfig {
         #[serde(rename = "sick_sec")]
         sick_sec_config: SickSecConfig,
     },
+    Http {
+        url: String,
+    },
 }

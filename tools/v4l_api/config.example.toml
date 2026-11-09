@@ -1,0 +1,9 @@
+[v4l]
+device_path = "/dev/video11"
+
+[web]
+host = "0.0.0.0"
+port = 80
+auth_type = "None"
+username = ""
+password = ""

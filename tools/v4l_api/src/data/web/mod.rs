@@ -1,5 +1,5 @@
 use crate::v4l::V4lCapture;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct AppState {
     pub v4l_capture: Arc<V4lCapture>,

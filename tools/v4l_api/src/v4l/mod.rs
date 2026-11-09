@@ -1,14 +1,12 @@
 use crate::data::config::v4l::V4lConfig;
 use crate::data::v4l::CaptureRequest;
 use image::{DynamicImage, RgbImage};
+use linux_video::Device;
+use linux_video::types::{BufferType, ContentType, FourCc, In, Mmap, PixFormatMplane};
 use log::{debug, error};
 use std::error::Error;
 use tokio::sync::{mpsc, oneshot};
-use v4l::Device;
-use v4l::buffer::Type;
-use v4l::io::traits::CaptureStream;
-use v4l::prelude::MmapStream;
-use v4l::video::Capture;
+use tokio::task;
 use yuvutils_rs::{
     YuvBiPlanarImage, YuvConversionMode, YuvRange, YuvStandardMatrix, yuv_nv12_to_rgb,
 };
@@ -20,12 +18,12 @@ pub struct V4lCapture {
 
 impl V4lCapture {
     pub async fn new(config: &V4lConfig) -> Self {
-        let device_id = config.device_id().to_owned();
+        let device_path = config.device_path().clone();
 
         let (to_thread_tx, to_thread_rx) = mpsc::channel::<CaptureRequest>(8);
 
-        tokio::spawn(async move {
-            if let Err(e) = Self::capture_thread(device_id, to_thread_rx).await {
+        task::spawn_blocking(move || {
+            if let Err(e) = Self::capture_thread(&device_path, to_thread_rx) {
                 error!("Error in capture thread: {e}");
             }
         });
@@ -42,48 +40,79 @@ impl V4lCapture {
 
         let (format, buf) = rx.await?;
 
-        let width = format.width;
-        let height = format.height;
-        let stride = format.stride;
+        let pix = format
+            .try_ref::<PixFormatMplane>()
+            .ok_or("Expected multi-planar video format")?;
 
-        debug!("width: {}, height: {}", width, height);
-        debug!("Format: {:?}", format);
+        let width = pix.width();
+        let height = pix.height();
+        let pixel_format = pix.pixel_format();
+        let planes = pix.plane_fmt();
 
-        if format.fourcc.str()? != "NV12" {
-            return Err(format!("Unsupported format: {:?}", format).into());
+        let (y_stride, uv_stride, y_plane, uv_plane) = match planes {
+            [y, uv, ..] => {
+                let y_stride = y.bytes_per_line();
+                let uv_stride = uv.bytes_per_line();
+                let y_size = y.size_image().max(y_stride * height) as usize;
+                let uv_size = uv.size_image().max(uv_stride * (height / 2)) as usize;
+
+                if buf.len() < y_size + uv_size {
+                    return Err(format!(
+                        "Buffer too small: expected at least {}, got {}",
+                        y_size + uv_size,
+                        buf.len()
+                    )
+                    .into());
+                }
+
+                let (y_plane, rest) = buf.split_at(y_size);
+                let uv_plane = &rest[..uv_size];
+                (y_stride, uv_stride, y_plane, uv_plane)
+            }
+            [y] => {
+                let y_stride = y.bytes_per_line();
+                let uv_stride = y_stride;
+                let y_size = (y_stride * height) as usize;
+                let uv_size = y_size / 2;
+                let expected_size = y_size + uv_size;
+
+                if buf.len() < expected_size {
+                    return Err(format!(
+                        "Buffer too small: expected at least {}, got {}",
+                        expected_size,
+                        buf.len()
+                    )
+                    .into());
+                }
+
+                let (y_plane, rest) = buf.split_at(y_size);
+                let uv_plane = &rest[..uv_size];
+                (y_stride, uv_stride, y_plane, uv_plane)
+            }
+            _ => return Err("No plane format information available".into()),
+        };
+
+        debug!(
+            "width: {}, height: {}, y_stride: {}, uv_stride: {}, format: {}",
+            width, height, y_stride, uv_stride, pixel_format
+        );
+
+        if pixel_format != FourCc::Nv12 && pixel_format != FourCc::Nv21 {
+            return Err(format!("Unsupported format: {pixel_format} (expected NV12/NV21)").into());
         }
 
-        let y_size = stride * height;
-        let uv_size = y_size / 2;
-
-        let expected_size = (y_size + uv_size) as usize;
-
-        if buf.len() < expected_size {
-            return Err(format!(
-                "Buffer too small: expected {}, got {}",
-                expected_size,
-                buf.len()
-            )
-            .into());
-        }
-
-        let (y_plane, uv_plane) = buf.split_at(y_size as usize);
-
-        if uv_plane.len() != uv_size as usize {
-            return Err("Invalid NV12 buffer size".into());
+        if pixel_format == FourCc::Nv21 {
+            return Err("NV21 is not supported yet (expected NV12)".into());
         }
 
         let yuv_image = YuvBiPlanarImage {
             y_plane,
-            y_stride: stride,
+            y_stride,
             uv_plane,
-            uv_stride: stride,
+            uv_stride,
             width,
             height,
         };
-        let range = YuvRange::Full;
-        let matrix = YuvStandardMatrix::Bt709;
-        let mode = YuvConversionMode::Balanced;
 
         let rgb_stride = width * 3;
         let mut data_rgb = vec![0u8; (rgb_stride * height) as usize];
@@ -92,37 +121,35 @@ impl V4lCapture {
             &yuv_image,
             data_rgb.as_mut_slice(),
             rgb_stride,
-            range,
-            matrix,
-            mode,
+            YuvRange::Full,
+            YuvStandardMatrix::Bt709,
+            YuvConversionMode::Balanced,
         )?;
 
-        let rgb_image = match RgbImage::from_raw(width, height, data_rgb) {
-            Some(image) => image,
-            None => {
-                return Err("Failed to create RGB image".into());
-            }
-        };
+        let rgb_image =
+            RgbImage::from_raw(width, height, data_rgb).ok_or("Failed to create RGB image")?;
 
-        let dynamic_image = DynamicImage::ImageRgb8(rgb_image);
-
-        Ok(dynamic_image)
+        Ok(DynamicImage::ImageRgb8(rgb_image))
     }
 
-    async fn capture_thread(
-        device_id: usize,
+    fn capture_thread(
+        device_path: &str,
         mut rx: mpsc::Receiver<CaptureRequest>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut device = Device::new(device_id)?;
-        let format = device.format()?;
-        let mut stream = MmapStream::with_buffers(&mut device, Type::VideoCapture, 4)?;
+        let device = Device::open(device_path)?;
 
-        while let Some(request) = rx.recv().await {
+        let format = device.format(BufferType::VideoCaptureMplane)?;
+        debug!("Format: {format}");
+
+        let stream = device.stream::<In, Mmap>(ContentType::VideoMplane, 4)?;
+
+        while let Some(request) = rx.blocking_recv() {
             match request {
                 CaptureRequest::Capture { response } => {
-                    let (buf, _) = stream.next()?;
-
-                    let _ = response.send((format.clone(), buf.to_vec()));
+                    let buffer = stream.next()?;
+                    let data = buffer.lock();
+                    let bytes = data.as_ref().to_vec();
+                    let _ = response.send((format.clone(), bytes));
                 }
             }
         }

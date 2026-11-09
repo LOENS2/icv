@@ -1,5 +1,4 @@
-use image::DynamicImage;
-use v4l::Format;
+use linux_video::types::Format;
 
 pub enum CaptureRequest {
     Capture {

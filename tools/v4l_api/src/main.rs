@@ -4,8 +4,9 @@ use crate::data::web::AppState;
 use crate::v4l::V4lCapture;
 use crate::web::handler::get_image;
 use actix_web::{App, HttpServer, web::Data};
+use simple_logger::SimpleLogger;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub mod argparse;
 pub mod config;
@@ -15,6 +16,11 @@ mod web;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    if let Err(err) = SimpleLogger::new().init() {
+        println! {"Failed to initialize logger: {err}"};
+        Err(err.to_string())?
+    };
+
     let args = parse_arguments();
 
     let config = load_config(args.config_file)?;

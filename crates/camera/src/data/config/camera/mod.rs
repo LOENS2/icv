@@ -1,5 +1,7 @@
+pub mod http;
 pub mod sick_sec;
 
+use crate::data::config::camera::http::HttpConfig;
 use crate::data::config::camera::sick_sec::SickSecConfig;
 use serde::Deserialize;
 
@@ -11,6 +13,6 @@ pub enum CameraConfig {
         sick_sec_config: SickSecConfig,
     },
     Http {
-        url: String,
+        http_config: HttpConfig,
     },
 }

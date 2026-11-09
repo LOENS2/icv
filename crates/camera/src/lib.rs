@@ -14,7 +14,7 @@ pub async fn create_from_config(
 ) -> Result<Arc<dyn CameraInterface>, Box<dyn Error + Send + Sync>> {
     let camera_interface: Arc<dyn CameraInterface> = match config {
         CameraConfig::SickSec { sick_sec_config } => Arc::new(Sec::new(sick_sec_config).await?),
-        CameraConfig::Http { url } => Arc::new(Http::new(url).await?),
+        CameraConfig::Http { http_config } => Arc::new(Http::new(http_config.url()).await?),
     };
 
     Ok(camera_interface)

@@ -5,8 +5,7 @@ use ::config::{Config, File};
 use chrono::Local;
 use clap::Parser;
 use icv_camera::camera::interface::CameraInterface;
-use icv_camera::camera::sick_sec::connection::Sec;
-use icv_camera::data::config::camera::CameraConfig;
+use icv_camera::create_from_config;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -30,9 +29,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let config = settings.try_deserialize::<ImageCaptureConfig>()?;
 
-    let camera_interface: Arc<dyn CameraInterface> = match config.camera_config() {
-        CameraConfig::SickSec { sick_sec_config } => Arc::new(Sec::new(sick_sec_config).await?),
-    };
+    let camera_interface: Arc<dyn CameraInterface> =
+        create_from_config(config.camera_config()).await?;
 
     let date_time_now = Local::now();
     let name_template = config.name_template();

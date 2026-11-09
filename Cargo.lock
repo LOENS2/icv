@@ -4352,14 +4352,15 @@ dependencies = [
  "clap",
  "config",
  "getset",
- "image",
  "libc",
  "log",
  "nix",
+ "png",
  "serde",
  "simple_logger",
  "tokio",
  "tokio-linux-video",
+ "tokio-util",
  "yuvutils-rs",
 ]
 

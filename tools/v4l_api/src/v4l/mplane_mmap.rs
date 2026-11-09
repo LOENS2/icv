@@ -112,7 +112,7 @@ pub(super) async fn capture_thread(
     let fd = device.as_raw_fd();
     let buf_type = BufferType::VideoCaptureMplane as u32;
     let mem_type = Memory::Mmap as u32;
-    let buf_count = 4u32;
+    let buf_count = 2u32;
 
     let mut req = V4l2RequestBuffers {
         count: buf_count,
@@ -224,20 +224,33 @@ pub(super) async fn capture_thread(
                     }
 
                     let index = dq.index as usize;
-                    let mut bytes = Vec::new();
-                    if let Some(buf_state) = buffers.get(index) {
-                        for (mapped, plane) in buf_state.planes.iter().zip(dq_planes.iter()) {
+                    if index >= buffers.len() {
+                        return Err(format!("DQBUF returned invalid buffer index {index}").into());
+                    }
+                    let total: usize = dq_planes
+                        .iter()
+                        .zip(buffers[index].planes.iter())
+                        .map(|(plane, mapped)| {
                             let used = if plane.bytesused > 0 {
                                 plane.bytesused as usize
                             } else {
                                 mapped.len
                             };
-                            let used = used.min(mapped.len);
-                            let slice = unsafe {
-                                std::slice::from_raw_parts(mapped.ptr as *const u8, used)
-                            };
-                            bytes.extend_from_slice(slice);
-                        }
+                            used.min(mapped.len)
+                        })
+                        .sum();
+                    let mut bytes = Vec::with_capacity(total);
+                    let buf_state = &buffers[index];
+                    for (mapped, plane) in buf_state.planes.iter().zip(dq_planes.iter()) {
+                        let used = if plane.bytesused > 0 {
+                            plane.bytesused as usize
+                        } else {
+                            mapped.len
+                        };
+                        let used = used.min(mapped.len);
+                        let slice =
+                            unsafe { std::slice::from_raw_parts(mapped.ptr as *const u8, used) };
+                        bytes.extend_from_slice(slice);
                     }
 
                     // requeue
